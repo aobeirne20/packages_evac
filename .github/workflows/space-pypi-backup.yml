@@ -19,16 +19,27 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Download all versions and metadata
         run: |
           mkdir -p packages metadata
           packages=(alpenbar alpenglow-cereal alpenglow-datamodel alpenglow-nexus)
           for pkg in "${packages[@]}"; do
             echo "Fetching metadata for $pkg"
-            curl -s -o "metadata/$pkg.json" \
-              "https://pypi.pkg.jetbrains.space/alpenglow/p/alpenglow/$pkg/json"
+            curl -s -w "\nHTTP_STATUS:%{http_code}\n" \
+              "https://pypi.pkg.jetbrains.space/alpenglow/p/alpenglow/$pkg/json" \
+              -o "metadata/$pkg.json"
+
+            if ! jq . metadata/$pkg.json > /dev/null 2>&1; then
+              echo "❌ Invalid JSON for $pkg — likely not found or access denied"
+              cat metadata/$pkg.json
+              continue
+            fi
 
             versions=$(jq -r '.releases | keys[]' metadata/$pkg.json)
+            echo "Found versions for $pkg: $versions"
             for version in $versions; do
               files=$(jq -r --arg ver "$version" '.releases[$ver][]?.url' metadata/$pkg.json)
               for url in $files; do
