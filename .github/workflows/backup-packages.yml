@@ -8,63 +8,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-    - name: Install Python dependencies
-      run: pip install requests
+      - name: Install Python dependencies
+        run: pip install requests
 
-    - name: Download Python packages from JetBrains Space
-      env:
-        SPACE_TOKEN: ${{ secrets.SPACE_TOKEN }}
-      run: |
-        mkdir packages
-        echo '
+      - name: Write backup script
+        run: |
+          mkdir packages
+          printf "%s\n" "\
 import os
 import requests
 
-SPACE_TOKEN = os.getenv("SPACE_TOKEN")
-HEADERS = {"Authorization": f"Bearer {SPACE_TOKEN}"}
+SPACE_TOKEN = os.getenv('SPACE_TOKEN')
+HEADERS = {'Authorization': f'Bearer {SPACE_TOKEN}'}
 
-# ⚠️ Replace this with your actual JetBrains Space registry path
-BASE_URL = "https://alpenglow.jetbrains.space/p/alpenglow/packages"
+BASE_URL = 'https://<your-org>.jetbrains.space/api/http/pypi/<project>/packages'  # Replace this
 
 def list_packages():
-    response = requests.get(BASE_URL, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()
+    r = requests.get(BASE_URL, headers=HEADERS)
+    r.raise_for_status()
+    return r.json()
 
 def list_versions(package):
-    url = f"{BASE_URL}/{package}/versions"
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()
+    r = requests.get(f'{BASE_URL}/{package}/versions', headers=HEADERS)
+    r.raise_for_status()
+    return r.json()
 
-def download_package_file(url, dest_path):
+def download_file(url, dest):
     r = requests.get(url, headers=HEADERS)
     r.raise_for_status()
-    with open(dest_path, "wb") as f:
+    with open(dest, 'wb') as f:
         f.write(r.content)
 
-print("Fetching packages...")
 packages = list_packages()
 for pkg in packages:
-    pkg_name = pkg["name"]
-    versions = list_versions(pkg_name)
+    name = pkg['name']
+    versions = list_versions(name)
     for v in versions:
-        ver = v["version"]
-        print(f"Backing up {pkg_name} version {ver}")
-        for file in v["files"]:
-            url = file["downloadUrl"]
-            filename = f"{pkg_name}-{ver}-{os.path.basename(url)}"
-            download_package_file(url, f"packages/{filename}")
-' > backup.py
-        python backup.py
+        version = v['version']
+        for f in v['files']:
+            url = f['downloadUrl']
+            filename = f\"{name}-{version}-{os.path.basename(url)}\"
+            print(f'Downloading {filename}')
+            download_file(url, f'packages/{filename}')
+" > backup.py
 
-    - name: Upload backup as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: jetbrains-space-pypi-backup
-        path: packages/
+      - name: Run backup script
+        env:
+          SPACE_TOKEN:_
