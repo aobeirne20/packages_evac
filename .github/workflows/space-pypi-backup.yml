@@ -29,20 +29,20 @@ jobs:
           for pkg in "${packages[@]}"; do
             echo "Fetching metadata for $pkg..."
             curl -s -w "\nHTTP_STATUS:%{http_code}" \
-              "https://pypi.pkg.jetbrains.space/alpenglow/p/alpenglow/$pkg/json" \
+              "https://pypi.pkg.jetbrains.space/alpenglow/p/alpenglow/simple/$pkg/json" \
               -o "metadata/$pkg.json" > "metadata/${pkg}_status.txt"
 
             code=$(tail -n1 metadata/${pkg}_status.txt | sed 's/HTTP_STATUS://')
             if [[ "$code" != "200" ]]; then
               echo "❌ Failed to fetch metadata for $pkg (status $code)"
-              rm "metadata/$pkg.json"
+              rm -f "metadata/$pkg.json"
               continue
             fi
 
             if ! jq . "metadata/$pkg.json" > /dev/null 2>&1; then
               echo "❌ Invalid JSON for $pkg"
               cat "metadata/$pkg.json"
-              rm "metadata/$pkg.json"
+              rm -f "metadata/$pkg.json"
               continue
             fi
 
@@ -60,7 +60,11 @@ jobs:
           done
 
           echo "Creating manifest.json"
-          jq -s '.' metadata/*.json > manifest.json
+          if compgen -G "metadata/*.json" > /dev/null; then
+            jq -s '.' metadata/*.json > manifest.json
+          else
+            echo "{}" > manifest.json
+          fi
 
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v4
