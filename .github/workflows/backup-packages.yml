@@ -26,7 +26,7 @@ import requests
 SPACE_TOKEN = os.getenv('SPACE_TOKEN')
 HEADERS = {'Authorization': f'Bearer {SPACE_TOKEN}'}
 
-BASE_URL = 'https://<your-org>.jetbrains.space/api/http/pypi/<project>/packages'  # Replace this
+BASE_URL = 'https://alpenglow.jetbrains.space/p/alpenglow/packages'  # Replace this
 
 def list_packages():
     r = requests.get(BASE_URL, headers=HEADERS)
