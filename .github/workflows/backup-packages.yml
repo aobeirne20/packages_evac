@@ -8,55 +8,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install Python dependencies
+      - name: Install requests
         run: pip install requests
-
-      - name: Write backup script
-        run: |
-          mkdir packages
-          printf "%s\n" "\
-import os
-import requests
-
-SPACE_TOKEN = os.getenv('SPACE_TOKEN')
-HEADERS = {'Authorization': f'Bearer {SPACE_TOKEN}'}
-
-BASE_URL = 'https://alpenglow.jetbrains.space/p/alpenglow/packages'  # Replace this
-
-def list_packages():
-    r = requests.get(BASE_URL, headers=HEADERS)
-    r.raise_for_status()
-    return r.json()
-
-def list_versions(package):
-    r = requests.get(f'{BASE_URL}/{package}/versions', headers=HEADERS)
-    r.raise_for_status()
-    return r.json()
-
-def download_file(url, dest):
-    r = requests.get(url, headers=HEADERS)
-    r.raise_for_status()
-    with open(dest, 'wb') as f:
-        f.write(r.content)
-
-packages = list_packages()
-for pkg in packages:
-    name = pkg['name']
-    versions = list_versions(name)
-    for v in versions:
-        version = v['version']
-        for f in v['files']:
-            url = f['downloadUrl']
-            filename = f\"{name}-{version}-{os.path.basename(url)}\"
-            print(f'Downloading {filename}')
-            download_file(url, f'packages/{filename}')
-" > backup.py
 
       - name: Run backup script
         env:
-          SPACE_TOKEN:_
+          SPACE_TOKEN: ${{ secrets.SPACE_TOKEN }}
+        run: python .github/scripts/backup.py
+
+      - name: Upload packages as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jetbrains-space-packages
+          path: packages/
