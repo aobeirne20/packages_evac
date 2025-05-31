@@ -9,7 +9,10 @@ BASE_URL = 'https://alpenglow.jetbrains.space/p/alpenglow/packages/pypi/alpenglo
 
 def list_packages():
     response = requests.get(BASE_URL, headers=HEADERS)
-    response.raise_for_status()
+    print(f"STATUS: {response.status_code}")
+    print("RESPONSE TEXT:")
+    print(response.text[:500])  # Show first 500 characters of response body
+    response.raise_for_status()  # This will show 401, 403, or 404 if it's a permissions or URL problem
     return response.json()
 
 def list_versions(package):
