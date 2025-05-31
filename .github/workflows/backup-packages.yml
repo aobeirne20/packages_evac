@@ -1,7 +1,7 @@
 name: Backup JetBrains Space PyPI Packages
 
 on:
-  workflow_dispatch:  # Allows you to manually run this workflow from GitHub UI
+  workflow_dispatch:
 
 jobs:
   backup:
@@ -21,7 +21,7 @@ jobs:
         SPACE_TOKEN: ${{ secrets.SPACE_TOKEN }}
       run: |
         mkdir packages
-        cat > backup.py <<EOF
+        echo '
 import os
 import requests
 
@@ -45,22 +45,22 @@ def list_versions(package):
 def download_package_file(url, dest_path):
     r = requests.get(url, headers=HEADERS)
     r.raise_for_status()
-    with open(dest_path, 'wb') as f:
+    with open(dest_path, "wb") as f:
         f.write(r.content)
 
 print("Fetching packages...")
 packages = list_packages()
 for pkg in packages:
-    pkg_name = pkg['name']
+    pkg_name = pkg["name"]
     versions = list_versions(pkg_name)
     for v in versions:
-        ver = v['version']
+        ver = v["version"]
         print(f"Backing up {pkg_name} version {ver}")
-        for file in v['files']:
-            url = file['downloadUrl']
+        for file in v["files"]:
+            url = file["downloadUrl"]
             filename = f"{pkg_name}-{ver}-{os.path.basename(url)}"
             download_package_file(url, f"packages/{filename}")
-EOF
+' > backup.py
         python backup.py
 
     - name: Upload backup as artifact
