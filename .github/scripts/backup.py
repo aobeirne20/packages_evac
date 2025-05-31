@@ -1,41 +1,37 @@
 import os
 import requests
 
-SPACE_TOKEN = os.getenv('SPACE_TOKEN')
-HEADERS = {'Authorization': f'Bearer {SPACE_TOKEN}'}
+SPACE_TOKEN = os.getenv('SPACE_TOKEN')  # Not used, but leave in case you secure registry later
 
-# 🔧 Replace with your actual org/project name
-BASE_URL = 'https://alpenglow.jetbrains.space/api/http/projects/alpenglow/packages/pypi'
+# Registry root for your Space instance
+BASE_URL = "https://pypi.pkg.jetbrains.space/alpenglow/p/alpenglow"
 
-def list_packages():
-    response = requests.get(BASE_URL, headers=HEADERS)
-    print(f"STATUS: {response.status_code}")
-    print("RESPONSE TEXT:")
-    print(response.text[:500])  # Show first 500 characters of response body
-    response.raise_for_status()  # This will show 401, 403, or 404 if it's a permissions or URL problem
-    return response.json()
-
-def list_versions(package):
-    url = f"{BASE_URL}/{package}/versions"
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()
-
-def download_file(url, dest):
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
-    with open(dest, 'wb') as f:
-        f.write(response.content)
+# Add all known package names here
+packages = [
+    "alpenbar",  # Add more package names if needed
+    "alpenglow-cereal",
+    "alpenglow-datamodel",
+    "alpenglow-nexus"
+]
 
 os.makedirs("packages", exist_ok=True)
 
-print("Fetching package list...")
-for package in list_packages():
-    name = package['name']
-    for version in list_versions(name):
-        v = version['version']
-        for f in version['files']:
-            url = f['downloadUrl']
-            filename = f"{name}-{v}-{os.path.basename(url)}"
-            print(f"Downloading {filename}")
-            download_file(url, os.path.join("packages", filename))
+for pkg in packages:
+    index_url = f"{BASE_URL}/{pkg}/json"
+    print(f"Fetching {index_url} ...")
+    resp = requests.get(index_url)
+    if resp.status_code != 200:
+        print(f"❌ Failed to get metadata for {pkg}: {resp.status_code}")
+        continue
+
+    data = resp.json()
+    releases = data.get("releases", {})
+
+    for version, files in releases.items():
+        for f in files:
+            url = f["url"]
+            filename = f["filename"]
+            print(f"Downloading {filename} from {url}")
+            r = requests.get(url)
+            with open(f"packages/{filename}", "wb") as out:
+                out.write(r.content)
